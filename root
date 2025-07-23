@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Catch the Teleporting Button!</title>
+  <style>
+    body {
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+      position: relative;
+      background-color: #ffe5e5;
+      font-family: sans-serif;
+    }
+    #teleport-btn {
+      position: absolute;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      transition: top 0.3s ease, left 0.3s ease, background-color 0.3s ease, transform 0.1s;
+      z-index: 1;
+    }
+    #scoreboard {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      font-size: 18px;
+      background-color: rgba(255,255,255,0.8);
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+    #message-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 24px;
+      z-index: 999;
+      flex-direction: column;
+      display: none;
+    }
+    .splash {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      background-image: url('2583ecc4-c144-433b-9de0-00e33cf5ed53.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .sparkle {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      background: white;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: sparkleTrail 0.6s ease-out forwards;
+    }
+    @keyframes sparkleTrail {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: translate(var(--x), var(--y)) scale(0.5); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="scoreboard">Level: 1 | Score: 0/3 | Total Clicks: 0</div>
+  <div id="message-overlay"></div>
+  <button id="teleport-btn">Click Me</button>
+
+  <audio id="rattle-sound" src="https://www.soundjay.com/button/sounds/button-29.mp3" preload="auto"></audio>
+  <audio id="explode-sound" src="https://www.soundjay.com/explosion/sounds/explosion-01.mp3" preload="auto"></audio>
+
+  <script>
+    const btn = document.getElementById('teleport-btn');
+    const scoreboard = document.getElementById('scoreboard');
+    const rattleSound = document.getElementById('rattle-sound');
+    const explodeSound = document.getElementById('explode-sound');
+    const overlay = document.getElementById('message-overlay');
+
+    const levels = [3, 4, 5, 7, 10];
+    let level = 0;
+    let score = 0;
+    let totalClicks = 0;
+    let gameStartTime = Date.now();
+
+    const buffer = 100;
+    const funnyPhrases = ["Nice try!", "Too slow!", "Can't catch me!", "Haha!", "Almost had it!"];
+
+    function updateScoreboard() {
+      scoreboard.textContent = `Level: ${level + 1} | Score: ${score}/${levels[level]} | Total Clicks: ${totalClicks}`;
+    }
+
+    function moveButtonRandomly() {
+      const maxX = window.innerWidth - btn.offsetWidth;
+      const maxY = window.innerHeight - btn.offsetHeight;
+      const newX = Math.random() * maxX;
+      const newY = Math.random() * maxY;
+      btn.style.left = `${newX}px`;
+      btn.style.top = `${newY}px`;
+      btn.style.backgroundColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
+      btn.textContent = funnyPhrases[Math.floor(Math.random() * funnyPhrases.length)];
+    }
+
+    function showOverlay(message, showRestart = false) {
+      overlay.innerHTML = `<div>${message}</div>`;
+      if (showRestart) {
+        const restartBtn = document.createElement('button');
+        restartBtn.textContent = "Would you like to waste more time?";
+        restartBtn.onclick = () => location.reload();
+        overlay.appendChild(restartBtn);
+
+        const shareBtn = document.createElement('button');
+        shareBtn.textContent = "Would you like to waste someone else's time?";
+        shareBtn.onclick = () => {
+          navigator.clipboard.writeText(window.location.href);
+          alert('Game link copied!');
+        };
+        overlay.appendChild(shareBtn);
+      } else {
+        const contBtn = document.createElement('button');
+        contBtn.textContent = "Next Level";
+        contBtn.onclick = () => overlay.style.display = 'none';
+        overlay.appendChild(contBtn);
+      }
+      overlay.style.display = 'flex';
+    }
+
+    document.addEventListener('click', (e) => {
+      totalClicks++;
+      updateScoreboard();
+    });
+
+    btn.addEventListener('click', (e) => {
+      rattleSound.currentTime = 0;
+      rattleSound.play();
+      score++;
+
+      // Sparkles
+      for (let i = 0; i < 6; i++) {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle';
+        sparkle.style.left = `${e.clientX}px`;
+        sparkle.style.top = `${e.clientY}px`;
+        sparkle.style.setProperty('--x', `${(Math.random() - 0.5) * 100}px`);
+        sparkle.style.setProperty('--y', `${(Math.random() - 0.5) * 100}px`);
+        document.body.appendChild(sparkle);
+        setTimeout(() => sparkle.remove(), 600);
+      }
+
+      // Splash mark
+      const splash = document.createElement('div');
+      splash.className = 'splash';
+      splash.style.left = `${btn.offsetLeft}px`;
+      splash.style.top = `${btn.offsetTop}px`;
+      splash.style.backgroundColor = 'transparent';
+      document.body.appendChild(splash);
+
+      updateScoreboard();
+      btn.textContent = "Got me!";
+
+      if (score >= levels[level]) {
+        level++;
+        if (level >= levels.length) {
+          explodeSound.play();
+          btn.style.animation = 'explode 0.8s ease forwards';
+          const elapsed = ((Date.now() - gameStartTime) / 60000).toFixed(2);
+          setTimeout(() => {
+            showOverlay(`🎉 Congratulations! You just wasted ${elapsed} minutes.`, true);
+          }, 800);
+        } else {
+          showOverlay(`✅ Level ${level} complete! Get ready for the next challenge.`);
+          score = 0;
+          btn.textContent = "Click Me";
+          moveButtonRandomly();
+          document.body.style.backgroundColor = `hsl(0, 100%, ${90 - level * 10}%)`;
+        }
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      const btnRect = btn.getBoundingClientRect();
+      const dx = e.clientX - (btnRect.left + btnRect.width / 2);
+      const dy = e.clientY - (btnRect.top + btnRect.height / 2);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < buffer) {
+        moveButtonRandomly();
+      }
+    });
+
+    window.onload = () => {
+      moveButtonRandomly();
+      updateScoreboard();
+    };
+  </script>
+</body>
+</html>
